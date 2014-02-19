@@ -1,8 +1,10 @@
 'use strict';
 
-
+var sockjs = require('sockjs');
 var kraken = require('kraken-js'),
     app = {};
+var hub = require('./lib/hub');
+hub.sockjs_pool = [];
 
 
 app.configure = function configure(nconf, next) {
@@ -28,9 +30,24 @@ app.requestAfterRoute = function requestAfterRoute(server) {
 
 
 if (require.main === module) {
-    kraken.create(app).listen(function (err) {
+    var k = kraken.create(app);
+
+    k.listen(function (err) {
         if (err) {
             console.error(err.stack);
+        } else {
+            var http = k.app.get('kraken:server');
+            var sockjs_opts = {sockjs_url: 'http://cdn.sockjs.org/sockjs-0.3.min.js'};
+            var sockjs_echo = sockjs.createServer(sockjs_opts);
+            sockjs_echo.on('connection', function(conn) {
+                hub.sockjs_pool.push(conn);
+                conn.on('data', function(message) {
+                    hub.sockjs_pool.forEach(function(con) {
+                        con.write(message);
+                    });
+                });
+            });
+            sockjs_echo.installHandlers(http, {prefix:'/echo'});
         }
     });
 }
