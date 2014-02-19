@@ -7,6 +7,7 @@ var kraken = require('kraken-js'),
 
 app.configure = function configure(nconf, next) {
     // Async method run on startup.
+    nconf.set('port', Number(process.env.PORT || 5000));
     next(null);
 };
 
